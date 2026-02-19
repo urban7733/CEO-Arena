@@ -26,7 +26,7 @@ This frontend is configured for Cloudflare Pages via `wrangler.jsonc`.
 `npx wrangler whoami`
 
 2. Set production API URL in Cloudflare Pages environment variables  
-`VITE_API_BASE=https://your-render-backend.onrender.com/api`
+`VITE_API_BASE=https://api.your-domain.com/api`
 
 3. Deploy  
 `npm run cf:deploy`
