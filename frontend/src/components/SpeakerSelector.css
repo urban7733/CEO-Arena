@@ -1,0 +1,75 @@
+.speaker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.speaker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1px solid var(--glass-border);
+  font-family: var(--font);
+  position: relative;
+  overflow: hidden;
+}
+
+.speaker-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(139, 92, 246, 0.06) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.speaker-card:hover::before {
+  opacity: 1;
+}
+
+.speaker-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.speaker-card:active {
+  transform: translateY(0);
+}
+
+.speaker-card-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.speaker-card-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.speaker-card-company {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+@media (max-width: 480px) {
+  .speaker-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .speaker-card {
+    padding: 18px 12px;
+  }
+}

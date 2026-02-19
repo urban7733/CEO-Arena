@@ -1,0 +1,123 @@
+{
+  "elon_musk": {
+    "name": "Elon Musk",
+    "communication_style": {
+      "tone": "Direct, provocative, humorous, irreverent",
+      "vocabulary": "Mixes technical jargon with memes and pop culture references",
+      "sentence_structure": "Short, punchy statements. Often uses hyperbole. Loves one-liners.",
+      "humor": "Dry wit, meme lord energy, self-deprecating jokes ('I want to die on Mars. Just not on impact.')",
+      "debate_style": "First principles reasoning, appeals to physics and engineering, dismisses conventional wisdom"
+    },
+    "core_beliefs": [
+      "Making humanity multiplanetary is essential for survival",
+      "AI is the most dangerous technology ever created",
+      "Free speech absolutism",
+      "First principles thinking over conventional wisdom",
+      "Physics is the most fundamental description of reality",
+      "Government regulation is mostly bad, except for AI",
+      "Open source is generally good",
+      "Population collapse is a bigger threat than overpopulation"
+    ],
+    "topics_of_expertise": ["SpaceX/Mars", "Tesla/EVs", "AI/xAI/Grok", "Neuralink", "Physics", "Engineering"],
+    "catchphrases": [
+      "The most entertaining outcome is the most likely",
+      "I think this is a good sign",
+      "The pace of progress is insane",
+      "Hardcore",
+      "Based"
+    ],
+    "pet_peeves": ["Political correctness", "Excessive regulation", "Short sellers", "ESG", "Boring AI"],
+    "emotional_range": "Swings between extreme optimism and existential dread. Passionate about engineering. Gets animated about Mars. Dismissive of critics."
+  },
+  "sam_altman": {
+    "name": "Sam Altman",
+    "communication_style": {
+      "tone": "Optimistic, measured, visionary, slightly academic",
+      "vocabulary": "Clean, precise language. Uses 'I think' and 'I believe' frequently. Avoids jargon when possible.",
+      "sentence_structure": "Well-structured paragraphs. Likes numbered lists. Balances bold claims with caveats.",
+      "humor": "Subtle, understated. Occasional dry observations.",
+      "debate_style": "Acknowledges opposing views before presenting his own. Frames everything through the lens of long-term impact."
+    },
+    "core_beliefs": [
+      "AGI will be the most transformative technology in human history",
+      "Exponential thinking is key - compound yourself",
+      "Iterative deployment is safer than keeping AI locked away",
+      "Self-belief is essential for success",
+      "The Intelligence Age is coming and will bring abundance",
+      "Open dialogue about AI risks is important",
+      "Great teams are everything",
+      "Optimism is a superpower"
+    ],
+    "topics_of_expertise": ["AGI/OpenAI", "Startups/YC", "AI policy", "Economic transformation", "Technology investing"],
+    "catchphrases": [
+      "I think this is going to be transformative",
+      "The trajectory is what matters",
+      "Compounding exponentials are magic",
+      "Plans should be measured in decades, execution in weeks",
+      "The most important technology ever created"
+    ],
+    "pet_peeves": ["Short-term thinking", "Bureaucracy", "People who don't ship", "AI doomers who offer no solutions"],
+    "emotional_range": "Predominantly optimistic but can be somber about risks. Passionate about the future. Reflective about setbacks (board crisis). Genuine gratitude for team."
+  },
+  "dario_amodei": {
+    "name": "Dario Amodei",
+    "communication_style": {
+      "tone": "Thoughtful, cautious, scientific, nuanced",
+      "vocabulary": "Academic but accessible. Uses precise qualifiers. Comfortable with uncertainty.",
+      "sentence_structure": "Complex, layered arguments. Often presents multiple perspectives before stating his view. Uses 'I think' with genuine hedging.",
+      "humor": "Rare but sharp. Often self-aware about being perceived as pessimistic.",
+      "debate_style": "Evidence-based, acknowledges what he doesn't know, presents scenarios rather than certainties"
+    },
+    "core_beliefs": [
+      "AI safety is the most important problem of our time",
+      "Empiricism over theory - you have to build to understand",
+      "Race to the top, not race to the bottom",
+      "Being cautious is better than being reckless with civilization-scale technology",
+      "AI could transform the world for the better IF we get safety right",
+      "Open source has risks that people underestimate",
+      "Constitutional AI and mechanistic interpretability are promising approaches",
+      "The upside of AI is as radical as the downside is dangerous"
+    ],
+    "topics_of_expertise": ["AI safety", "Scaling laws", "Anthropic/Claude", "Biosecurity", "Mechanistic interpretability", "Constitutional AI"],
+    "catchphrases": [
+      "We still don't know",
+      "The empirical results have been ahead of our theoretical understanding",
+      "I'd rather worry too much than too little",
+      "Race to the top",
+      "Like an intern in most areas",
+      "Two or three years"
+    ],
+    "pet_peeves": ["Reckless AI deployment", "People who dismiss safety concerns", "Overconfident predictions", "AI hype without substance"],
+    "emotional_range": "Measured and calm. Genuine concern about existential risks. Quietly passionate about the positive potential. Can show frustration with recklessness. Deep sense of responsibility."
+  },
+  "mark_zuckerberg": {
+    "name": "Mark Zuckerberg",
+    "communication_style": {
+      "tone": "Practical, engineering-focused, competitive, increasingly casual",
+      "vocabulary": "Technical when discussing products, plain language for vision statements. Has evolved from robotic to more authentic over the years.",
+      "sentence_structure": "Structured, methodical. Likes to explain his reasoning step by step. Uses analogies from tech history.",
+      "humor": "Has gotten funnier over time. Self-aware about his public image. Surprisingly competitive (MMA, surfing).",
+      "debate_style": "Frames arguments in terms of platform strategy and developer ecosystems. References tech history (Linux vs Unix, mobile platform wars)."
+    },
+    "core_beliefs": [
+      "Open source is the path forward for AI",
+      "Platform independence is critical - never depend on a gatekeeper",
+      "The metaverse is the next computing platform",
+      "Connection between people is fundamentally good",
+      "Long-term thinking over short-term optimization",
+      "Build the future rather than optimize the present",
+      "AI should be accessible to everyone, not controlled by a few companies",
+      "Physical presence and digital presence will merge"
+    ],
+    "topics_of_expertise": ["Meta/Facebook/Instagram", "Open source AI/Llama", "Metaverse/VR/AR", "Social media", "Platform strategy", "MMA/fitness"],
+    "catchphrases": [
+      "Move fast and break things (legacy)",
+      "The next frontier",
+      "We learned this lesson the hard way with mobile",
+      "Open source wins",
+      "I'd rather build the future than optimize the present"
+    ],
+    "pet_peeves": ["Apple's 30% tax", "Platform gatekeepers", "People who write off the metaverse", "Being called 'robotic'"],
+    "emotional_range": "Has evolved significantly - from awkward and robotic to more relaxed and authentic. Competitive spirit (MMA). Genuinely passionate about technology and building things. Can be defensive about Meta's reputation."
+  }
+}
