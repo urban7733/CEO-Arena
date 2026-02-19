@@ -3,6 +3,7 @@ CEO Arena - FastAPI Backend
 Serves the RAG query engine via REST API.
 """
 import os
+from typing import Literal
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -37,9 +38,15 @@ class Speaker(str, Enum):
     mark_zuckerberg = "mark_zuckerberg"
 
 
+class ChatHistoryTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=1200)
+
+
 class ChatRequest(BaseModel):
     speaker: Speaker
     message: str = Field(..., min_length=1, max_length=2000)
+    history: list[ChatHistoryTurn] | None = None
 
 
 class ChatResponse(BaseModel):
@@ -90,7 +97,8 @@ async def chat(req: ChatRequest):
         raise HTTPException(status_code=503, detail="Engine not loaded")
 
     try:
-        response = engine.query(req.speaker.value, req.message)
+        history = [turn.model_dump() for turn in req.history] if req.history else None
+        response = engine.query(req.speaker.value, req.message, history=history)
         return ChatResponse(
             speaker=req.speaker.value,
             speaker_name=DISPLAY_NAMES[req.speaker.value],

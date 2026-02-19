@@ -67,8 +67,8 @@ class CEOQueryEngine:
         self._engines[speaker] = engine
         return engine
 
-    def _style_hint(self, question: str) -> str:
-        """Return a concise style instruction based on the user query shape."""
+    def _style_plan(self, question: str, has_history: bool) -> tuple[str, int | None, int | None]:
+        """Return style instruction plus hard output limits."""
         q = question.strip()
         lowered = q.lower()
         word_count = len(re.findall(r"\w+", q))
@@ -77,28 +77,116 @@ class CEOQueryEngine:
             r"^(hi|hello|hey|yo|sup|hallo|servus|moin|guten tag|guten morgen|guten abend)[!.?]*$",
             re.IGNORECASE,
         )
+        greeting_plus_re = re.compile(
+            r"^(hi|hello|hey|hallo|servus|moin).*(how are you|how's it going|wie geht|was geht)",
+            re.IGNORECASE,
+        )
         detail_re = re.compile(
             r"\b(detail|details|deep|deeper|detailed|step by step|explain in depth|warum|wieso|ausf[uü]hrlich)\b",
             re.IGNORECASE,
         )
 
+        if greeting_plus_re.search(q):
+            return (
+                "Reply in exactly 2 short sentences (max 38 words total): give a specific in-character status "
+                "update, then ask one natural follow-up question.",
+                2,
+                38,
+            )
         if greeting_re.match(q):
-            return "Reply with exactly one short sentence (max 16 words), in character."
+            return ("Reply with exactly one short sentence (max 14 words), in character.", 1, 14)
         if word_count <= 4:
-            return "Reply with one short sentence (max 20 words), in character."
+            return ("Reply with exactly one short sentence (max 16 words), in character.", 1, 16)
+        if has_history and word_count <= 12:
+            return (
+                "Treat this as a follow-up. Reference relevant recent chat context. "
+                "Reply in 1-2 short sentences, max 36 words.",
+                2,
+                36,
+            )
         if word_count <= 10 and not detail_re.search(lowered):
-            return "Reply in 1-2 short sentences (max 45 words), clear and specific."
-        if detail_re.search(lowered):
-            return "Give a clear but structured answer, usually 4-8 short sentences, no filler."
-        return "Keep it concise: usually 2-4 short sentences, clear and specific."
+            return ("Reply in 1-2 short sentences, max 34 words, clear and specific.", 2, 34)
+        if detail_re.search(lowered) or word_count >= 26:
+            return (
+                "Give a detailed and structured answer in 5-10 sentences with concrete points, no filler.",
+                10,
+                260,
+            )
+        if word_count >= 16:
+            return (
+                "Give a clear, medium-depth answer in 3-6 sentences with practical specifics.",
+                6,
+                150,
+            )
+        return ("Keep it concise: 2-3 short sentences, max 70 words, clear and specific.", 3, 70)
 
-    def query(self, speaker: str, question: str) -> str:
+    def _format_history_context(self, history: list[dict] | None) -> str:
+        """Build compact recent conversation context for the current query."""
+        if not history:
+            return ""
+
+        lines: list[str] = []
+        for turn in history[-8:]:
+            role = turn.get("role", "user")
+            content = str(turn.get("content", "")).strip()
+            if not content or content.startswith("Error:"):
+                continue
+
+            flattened = " ".join(content.split())
+            if len(flattened) > 260:
+                flattened = f"{flattened[:257]}..."
+
+            prefix = "User" if role == "user" else "Assistant"
+            lines.append(f"{prefix}: {flattened}")
+
+        return "\n".join(lines)
+
+    def _enforce_response_limits(
+        self,
+        text: str,
+        max_sentences: int | None,
+        max_words: int | None,
+    ) -> str:
+        """Apply hard sentence/word limits to keep answers concise."""
+        cleaned = " ".join(text.strip().split())
+        if not cleaned:
+            return cleaned
+
+        if max_sentences is not None:
+            parts = re.split(r"(?<=[.!?])\s+", cleaned)
+            cleaned = " ".join(parts[:max_sentences]).strip()
+
+        if max_words is not None:
+            words = cleaned.split()
+            if len(words) > max_words:
+                cleaned = " ".join(words[:max_words]).rstrip(",:;")
+                if cleaned and cleaned[-1] not in ".!?":
+                    cleaned += "."
+
+        return cleaned
+
+    def query(self, speaker: str, question: str, history: list[dict] | None = None) -> str:
         """Ask a question to a specific CEO."""
         engine = self._get_engine(speaker)
-        hint = self._style_hint(question)
-        styled_question = f"{question}\n\n[Response format instruction: {hint}]"
+        has_history = bool(history)
+        hint, max_sentences, max_words = self._style_plan(question, has_history=has_history)
+        history_context = self._format_history_context(history)
+
+        if history_context:
+            styled_question = (
+                f"[Response format instruction: {hint}]\n"
+                f"[Recent conversation context]\n{history_context}\n\n"
+                f"[Current user message]\n{question}"
+            )
+        else:
+            styled_question = (
+                f"[Response format instruction: {hint}]\n"
+                f"[Current user message]\n{question}"
+            )
+
         response = engine.query(styled_question)
-        return str(response)
+        text = str(response)
+        return self._enforce_response_limits(text, max_sentences=max_sentences, max_words=max_words)
 
     def debate(self, question: str, speakers: list[str] | None = None) -> dict[str, str]:
         """Ask the same question to multiple CEOs for a debate/comparison."""

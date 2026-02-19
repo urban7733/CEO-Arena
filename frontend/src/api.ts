@@ -2,14 +2,20 @@ import type { ChatResponse, SpeakerId } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api";
 
+interface ChatHistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function sendMessage(
   speaker: SpeakerId,
-  message: string
+  message: string,
+  history?: ChatHistoryTurn[]
 ): Promise<ChatResponse> {
   const res = await fetch(`${API_BASE}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ speaker, message }),
+    body: JSON.stringify({ speaker, message, history }),
   });
 
   if (!res.ok) {

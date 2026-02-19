@@ -77,9 +77,15 @@ export default function App() {
         prev.map((s) => (s.id === session.id ? { ...session } : s))
       );
 
+      const history = session.messages
+        .slice(0, -1)
+        .filter((m) => (m.role === "user" || m.role === "assistant") && !m.content.startsWith("Error:"))
+        .slice(-12)
+        .map((m) => ({ role: m.role, content: m.content }));
+
       setIsLoading(true);
       try {
-        const res = await sendMessage(session.speaker, text);
+        const res = await sendMessage(session.speaker, text, history);
         addMessage(session, "assistant", res.message, session.speaker);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Something went wrong";
