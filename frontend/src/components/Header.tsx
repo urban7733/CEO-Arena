@@ -19,7 +19,9 @@ export function Header({ speaker, onMenuClick, onBack }: HeaderProps) {
       <div className="header-center">
         {speaker ? (
           <div className="header-speaker">
-            <span className="header-emoji">{speaker.emoji}</span>
+            <span className="header-avatar">
+              <img src={speaker.avatar} alt={speaker.name} />
+            </span>
             <div>
               <span className="header-name">{speaker.name}</span>
               <span className="header-company">{speaker.company}</span>

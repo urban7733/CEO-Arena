@@ -59,7 +59,9 @@ export function Sidebar({
                   }`}
                   onClick={() => onSelect(session.id)}
                 >
-                  <span className="sidebar-item-emoji">{speaker?.emoji}</span>
+                  <span className="sidebar-item-avatar">
+                    {speaker ? <img src={speaker.avatar} alt={speaker.name} loading="lazy" /> : null}
+                  </span>
                   <div className="sidebar-item-info">
                     <span className="sidebar-item-title">{session.title}</span>
                     <span className="sidebar-item-meta">

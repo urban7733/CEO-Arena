@@ -9,14 +9,25 @@ interface ChatAreaProps {
 }
 
 export function ChatArea({ messages, speaker, isLoading }: ChatAreaProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
+
+  const handleScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const threshold = 80;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+    shouldStickToBottomRef.current = isNearBottom;
+  };
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!shouldStickToBottomRef.current) return;
+    bottomRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages, isLoading]);
 
   return (
-    <div className="chat-area">
+    <div className="chat-area" ref={containerRef} onScroll={handleScroll}>
       <div className="chat-messages">
         {messages.length === 0 && !isLoading && (
           <div className="chat-empty glass">
@@ -28,7 +39,9 @@ export function ChatArea({ messages, speaker, isLoading }: ChatAreaProps) {
         {messages.map((msg) => (
           <div key={msg.id} className={`message message-${msg.role}`}>
             {msg.role === "assistant" && (
-              <div className="message-avatar">{speaker.emoji}</div>
+              <div className="message-avatar">
+                <img src={speaker.avatar} alt={speaker.name} loading="lazy" />
+              </div>
             )}
             <div
               className={`message-bubble glass ${
@@ -42,7 +55,9 @@ export function ChatArea({ messages, speaker, isLoading }: ChatAreaProps) {
 
         {isLoading && (
           <div className="message message-assistant">
-            <div className="message-avatar">{speaker.emoji}</div>
+            <div className="message-avatar">
+              <img src={speaker.avatar} alt={speaker.name} loading="lazy" />
+            </div>
             <div className="message-bubble glass message-bubble-assistant">
               <div className="typing-indicator">
                 <span />

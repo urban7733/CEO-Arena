@@ -2,28 +2,30 @@ import { useState, useCallback, useEffect } from "react";
 import type { ChatSession, SpeakerId } from "./types";
 import { sendMessage, checkHealth } from "./api";
 import { loadSessions, saveSessions, createSession, addMessage } from "./store";
-import { SpeakerSelector } from "./components/SpeakerSelector";
 import { ChatArea } from "./components/ChatArea";
 import { ChatInput } from "./components/ChatInput";
 import { Sidebar } from "./components/Sidebar";
 import "./App.css";
 
 const SPEAKERS_DATA = [
-  { id: "elon_musk" as SpeakerId, name: "Elon Musk", company: "Tesla, SpaceX, xAI", emoji: "🚀" },
-  { id: "sam_altman" as SpeakerId, name: "Sam Altman", company: "OpenAI", emoji: "🧠" },
-  { id: "dario_amodei" as SpeakerId, name: "Dario Amodei", company: "Anthropic", emoji: "🛡️" },
-  { id: "mark_zuckerberg" as SpeakerId, name: "Mark Zuckerberg", company: "Meta", emoji: "👓" },
+  { id: "elon_musk" as SpeakerId, name: "Elon Musk", company: "Tesla, SpaceX, xAI", avatar: "/avatars/elon_musk.png" },
+  { id: "sam_altman" as SpeakerId, name: "Sam Altman", company: "OpenAI", avatar: "/avatars/sam_altman.png" },
+  { id: "dario_amodei" as SpeakerId, name: "Dario Amodei", company: "Anthropic", avatar: "/avatars/dario_amodei.png" },
+  { id: "mark_zuckerberg" as SpeakerId, name: "Mark Zuckerberg", company: "Meta", avatar: "/avatars/mark_zuckerberg.png" },
 ];
 
 export default function App() {
   const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState<SpeakerId>("elon_musk");
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [apiReady, setApiReady] = useState<boolean | null>(null);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null;
-  const activeSpeaker = SPEAKERS_DATA.find((s) => s.id === activeSession?.speaker);
+  const activeSpeaker = activeSession
+    ? SPEAKERS_DATA.find((s) => s.id === activeSession.speaker) ?? SPEAKERS_DATA[0]
+    : SPEAKERS_DATA.find((s) => s.id === selectedSpeakerId) ?? SPEAKERS_DATA[0];
 
   useEffect(() => {
     let cancelled = false;
@@ -53,45 +55,54 @@ export default function App() {
     []
   );
 
-  const handleSelectSpeaker = useCallback(
+  const createNewSession = useCallback(
     (speakerId: SpeakerId) => {
       const session = createSession(speakerId);
       updateSessions((prev) => [session, ...prev]);
       setActiveSessionId(session.id);
+      return session;
     },
     [updateSessions]
   );
 
   const handleSend = useCallback(
     async (text: string) => {
-      if (!activeSession) return;
+      let session = activeSession;
+      if (!session) {
+        session = createNewSession(selectedSpeakerId);
+      }
 
-      addMessage(activeSession, "user", text);
+      addMessage(session, "user", text);
       updateSessions((prev) =>
-        prev.map((s) => (s.id === activeSession.id ? { ...activeSession } : s))
+        prev.map((s) => (s.id === session.id ? { ...session } : s))
       );
 
       setIsLoading(true);
       try {
-        const res = await sendMessage(activeSession.speaker, text);
-        addMessage(activeSession, "assistant", res.message, activeSession.speaker);
+        const res = await sendMessage(session.speaker, text);
+        addMessage(session, "assistant", res.message, session.speaker);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Something went wrong";
-        addMessage(activeSession, "assistant", `Error: ${errorMsg}`);
+        addMessage(session, "assistant", `Error: ${errorMsg}`);
       } finally {
         setIsLoading(false);
         updateSessions((prev) =>
-          prev.map((s) => (s.id === activeSession.id ? { ...activeSession } : s))
+          prev.map((s) => (s.id === session.id ? { ...session } : s))
         );
       }
     },
-    [activeSession, updateSessions]
+    [activeSession, createNewSession, selectedSpeakerId, updateSessions]
   );
 
-  const handleSelectSession = useCallback((sessionId: string) => {
-    setActiveSessionId(sessionId);
-    setSidebarOpen(false);
-  }, []);
+  const handleSelectSession = useCallback(
+    (sessionId: string) => {
+      const session = sessions.find((s) => s.id === sessionId);
+      if (session) setSelectedSpeakerId(session.speaker);
+      setActiveSessionId(sessionId);
+      setSidebarOpen(false);
+    },
+    [sessions]
+  );
 
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
@@ -105,6 +116,26 @@ export default function App() {
     setActiveSessionId(null);
     setSidebarOpen(false);
   }, []);
+
+  const handleSpeakerChange = useCallback(
+    (speakerId: SpeakerId) => {
+      setSelectedSpeakerId(speakerId);
+
+      if (!activeSession) return;
+      if (activeSession.speaker === speakerId) return;
+
+      if (activeSession.messages.length === 0) {
+        activeSession.speaker = speakerId;
+        updateSessions((prev) =>
+          prev.map((s) => (s.id === activeSession.id ? { ...activeSession } : s))
+        );
+        return;
+      }
+
+      setActiveSessionId(null);
+    },
+    [activeSession, updateSessions]
+  );
 
   return (
     <div className="app">
@@ -120,60 +151,42 @@ export default function App() {
       />
 
       <main className="main">
-        <section className="hero glass">
-          <button className="hero-icon-btn glass-hover" onClick={() => setSidebarOpen(true)} aria-label="Open conversation history">
+        <section className="topbar">
+          <button
+            className="topbar-icon-btn glass-hover"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            aria-label="Open conversation history"
+          >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           </button>
 
-          <div className="hero-copy">
-            <h1 className="hero-title">CEO Arena</h1>
-            <p className="hero-subtitle">A clean glass chat experience for the 4 AI-era CEOs.</p>
+          <div className="topbar-copy">
+            <h1 className="topbar-title">CEO Arena</h1>
+            <p className="topbar-subtitle">One chat box. Four perspectives.</p>
           </div>
 
-          <div className="hero-actions">
+          <div className="topbar-actions">
             <span className={`status-pill ${apiReady === true ? "status-pill-ready" : "status-pill-waiting"}`}>
               {apiReady === null ? "Checking API" : apiReady ? "API Ready" : "API Offline"}
             </span>
-            <button className="hero-new-chat glass-hover" onClick={handleNewChat}>
+            <button className="new-chat-btn glass-hover" onClick={handleNewChat}>
               New Chat
             </button>
           </div>
         </section>
 
         <section className="chat-shell glass">
-          {!activeSession ? (
-            <div className="welcome">
-              <div className="welcome-content">
-                <h2 className="welcome-title">Choose a CEO</h2>
-                <p className="welcome-subtitle">
-                  Start one conversation at a time. Your local chat history is saved automatically.
-                </p>
-                <SpeakerSelector speakers={SPEAKERS_DATA} onSelect={handleSelectSpeaker} />
-                <p className="disclaimer">
-                  Fan-made simulation based on public data. Not affiliated with any individual.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="active-speaker-strip">
-                <div className="active-speaker-badge">
-                  <span>{activeSpeaker?.emoji}</span>
-                  <div>
-                    <strong>{activeSpeaker?.name}</strong>
-                    <small>{activeSpeaker?.company}</small>
-                  </div>
-                </div>
-                <button className="change-speaker-btn glass-hover" onClick={handleNewChat}>
-                  Switch Speaker
-                </button>
-              </div>
-              <ChatArea messages={activeSession.messages} speaker={activeSpeaker!} isLoading={isLoading} />
-              <ChatInput onSend={handleSend} isLoading={isLoading} speakerName={activeSpeaker?.name ?? ""} />
-            </>
-          )}
+          <ChatArea messages={activeSession?.messages ?? []} speaker={activeSpeaker} isLoading={isLoading} />
+          <ChatInput
+            onSend={handleSend}
+            isLoading={isLoading}
+            speakerName={activeSpeaker.name}
+            speakers={SPEAKERS_DATA}
+            selectedSpeakerId={selectedSpeakerId}
+            onSpeakerChange={handleSpeakerChange}
+          />
         </section>
       </main>
     </div>

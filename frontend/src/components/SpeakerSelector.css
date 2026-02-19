@@ -46,9 +46,18 @@
   transform: translateY(0) scale(1);
 }
 
-.speaker-card-emoji {
-  font-size: 1.9rem;
-  line-height: 1;
+.speaker-card-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+}
+
+.speaker-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .speaker-card-name {

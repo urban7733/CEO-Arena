@@ -16,7 +16,9 @@ export function SpeakerSelector({ speakers, onSelect }: SpeakerSelectorProps) {
           onClick={() => onSelect(s.id)}
           style={{ animationDelay: `${index * 70}ms` }}
         >
-          <span className="speaker-card-emoji">{s.emoji}</span>
+          <span className="speaker-card-avatar">
+            <img src={s.avatar} alt={s.name} />
+          </span>
           <span className="speaker-card-name">{s.name}</span>
           <span className="speaker-card-company">{s.company}</span>
         </button>

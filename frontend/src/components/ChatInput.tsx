@@ -1,13 +1,24 @@
 import { useState, useRef, type KeyboardEvent } from "react";
+import type { Speaker, SpeakerId } from "../types";
 import "./ChatInput.css";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   isLoading: boolean;
   speakerName: string;
+  speakers: Speaker[];
+  selectedSpeakerId: SpeakerId;
+  onSpeakerChange: (speakerId: SpeakerId) => void;
 }
 
-export function ChatInput({ onSend, isLoading, speakerName }: ChatInputProps) {
+export function ChatInput({
+  onSend,
+  isLoading,
+  speakerName,
+  speakers,
+  selectedSpeakerId,
+  onSpeakerChange,
+}: ChatInputProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -38,6 +49,22 @@ export function ChatInput({ onSend, isLoading, speakerName }: ChatInputProps) {
   return (
     <div className="input-wrapper">
       <div className="input-container glass">
+        <div className="speaker-pick" aria-label="Choose speaker" role="listbox">
+          {speakers.map((speaker) => (
+            <button
+              key={speaker.id}
+              className={`speaker-avatar-btn ${selectedSpeakerId === speaker.id ? "speaker-avatar-btn-active" : ""}`}
+              onClick={() => onSpeakerChange(speaker.id)}
+              type="button"
+              disabled={isLoading}
+              title={speaker.name}
+              aria-label={`Use ${speaker.name}`}
+            >
+              <img src={speaker.avatar} alt={speaker.name} loading="lazy" />
+            </button>
+          ))}
+        </div>
+
         <textarea
           ref={textareaRef}
           className="input-field"
@@ -68,7 +95,7 @@ export function ChatInput({ onSend, isLoading, speakerName }: ChatInputProps) {
         </button>
       </div>
       <p className="input-hint">
-        Powered by Llama 3.3 via Groq. Responses are AI-generated simulations.
+        Talking to {speakerName}. History is saved automatically on this device.
       </p>
     </div>
   );

@@ -48,8 +48,18 @@
   gap: 10px;
 }
 
-.header-emoji {
-  font-size: 1.3rem;
+.header-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+}
+
+.header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .header-name {

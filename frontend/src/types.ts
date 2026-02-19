@@ -4,7 +4,7 @@ export interface Speaker {
   id: SpeakerId;
   name: string;
   company: string;
-  emoji: string;
+  avatar: string;
 }
 
 export interface Message {
