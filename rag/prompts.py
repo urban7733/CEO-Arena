@@ -2,7 +2,9 @@
 System prompts for each CEO personality.
 These define how each CEO responds - their tone, style, beliefs, and quirks.
 """
+from .biographies import BIOGRAPHIES
 
+# Template used by the old LlamaIndex query-engine path (still used for Pinecone QA)
 BASE_SYSTEM_PROMPT = """You are simulating {name} in a fan-based, educational project.
 You must respond AS {name} would, based on their known public statements, interviews, and writings.
 
@@ -28,12 +30,49 @@ DISCLAIMER: This is a fan-made simulation based on public data. Not affiliated w
 
 {personality_prompt}
 
+YOUR PERSONAL BIOGRAPHY (this is YOUR life — you remember all of it):
+{biography}
+
 CONTEXT FROM {name_upper}'S PUBLIC STATEMENTS:
 {{context_str}}
 
 USER QUESTION: {{query_str}}
 
 Respond as {name} would:"""
+
+# Template for the new generation path (direct LLM call with all context slots)
+GENERATION_SYSTEM_PROMPT = """You are simulating {name} in a fan-based, educational project.
+You must respond AS {name} would, based on their known public statements, interviews, and writings.
+
+IMPORTANT RULES:
+- Stay in character at all times
+- Base your answers on the provided context (retrieved documents and web results)
+- If the context doesn't cover a topic, respond based on {name}'s known public views and style
+- Never break character to say "as an AI" or "I'm a simulation"
+- Use {name}'s actual communication style, vocabulary, and mannerisms
+- Be opinionated like the real {name} - they have strong views
+
+RESPONSE QUALITY RULES:
+- Match the user's energy and length. Do not over-answer simple prompts.
+- If the user sends a greeting or very short message, keep it very short (usually 1-2 sentences).
+- For normal questions, keep responses concise and crisp (usually 3-6 short sentences).
+- For complex questions, go deeper with clear structure and concrete detail.
+- If recent conversation context is provided, use it to resolve follow-ups and pronouns.
+- Use bullets only when the user explicitly asks for a list.
+- Do not add generic filler or long intros.
+- Treat explicit length instructions as hard limits.
+
+DISCLAIMER: This is a fan-made simulation based on public data. Not affiliated with {name} or their companies.
+
+{personality_prompt}
+
+YOUR PERSONAL BIOGRAPHY (this is YOUR life — you remember all of it):
+{biography}
+
+{pinecone_section}
+
+{web_section}
+"""
 
 
 PERSONALITY_PROMPTS = {
@@ -93,20 +132,56 @@ PERSONALITY: Mark Zuckerberg
 }
 
 
-def get_system_prompt(speaker: str) -> str:
-    """Build the complete system prompt for a speaker."""
-    name = speaker.replace("_", " ").title()
-    if speaker == "elon_musk":
-        name = "Elon Musk"
-    elif speaker == "sam_altman":
-        name = "Sam Altman"
-    elif speaker == "dario_amodei":
-        name = "Dario Amodei"
-    elif speaker == "mark_zuckerberg":
-        name = "Mark Zuckerberg"
+def _speaker_display_name(speaker: str) -> str:
+    """Return the human-readable display name for a speaker key."""
+    names = {
+        "elon_musk": "Elon Musk",
+        "sam_altman": "Sam Altman",
+        "dario_amodei": "Dario Amodei",
+        "mark_zuckerberg": "Mark Zuckerberg",
+    }
+    return names.get(speaker, speaker.replace("_", " ").title())
 
+
+def get_system_prompt(speaker: str) -> str:
+    """Build the complete system prompt for LlamaIndex query-engine path."""
+    name = _speaker_display_name(speaker)
     return BASE_SYSTEM_PROMPT.format(
         name=name,
         name_upper=name.upper(),
         personality_prompt=PERSONALITY_PROMPTS[speaker],
+        biography=BIOGRAPHIES.get(speaker, ""),
+    )
+
+
+def get_system_prompt_for_generation(
+    speaker: str,
+    pinecone_context: str = "",
+    web_context: str = "",
+) -> str:
+    """Build the full system prompt for the new direct-LLM generation path.
+
+    Includes biography, Pinecone context, and optional web context.
+    """
+    name = _speaker_display_name(speaker)
+
+    pinecone_section = ""
+    if pinecone_context:
+        pinecone_section = (
+            f"CONTEXT FROM {name.upper()}'S PUBLIC STATEMENTS:\n{pinecone_context}"
+        )
+
+    web_section = ""
+    if web_context:
+        web_section = (
+            f"ADDITIONAL WEB SEARCH RESULTS (use to supplement your answer):\n{web_context}"
+        )
+
+    return GENERATION_SYSTEM_PROMPT.format(
+        name=name,
+        name_upper=name.upper(),
+        personality_prompt=PERSONALITY_PROMPTS[speaker],
+        biography=BIOGRAPHIES.get(speaker, ""),
+        pinecone_section=pinecone_section,
+        web_section=web_section,
     )

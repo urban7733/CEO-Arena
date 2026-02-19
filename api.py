@@ -58,6 +58,7 @@ class ChatResponse(BaseModel):
     speaker: str
     speaker_name: str
     message: str
+    source: str | None = None  # "pinecone", "web+pinecone", "direct"
 
 
 class DebateRequest(BaseModel):
@@ -103,11 +104,12 @@ async def chat(req: ChatRequest):
 
     try:
         history = [turn.model_dump() for turn in req.history] if req.history else None
-        response = engine.query(req.speaker.value, req.message, history=history)
+        response, source = engine.query(req.speaker.value, req.message, history=history)
         return ChatResponse(
             speaker=req.speaker.value,
             speaker_name=DISPLAY_NAMES[req.speaker.value],
             message=response,
+            source=source,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,27 +1,45 @@
 """
 Query engine for CEO Arena.
 Uses Groq (Llama 3.3 70B) for generation and HuggingFace for embeddings.
-Retrieves relevant context from Pinecone and generates responses in CEO character.
+Three response paths:
+  1. Fast path   — greetings/trivial → LLM with persona + biography only
+  2. RAG path    — good Pinecone hits (score ≥ 0.35) → Pinecone context + LLM
+  3. Agentic path — weak Pinecone hits → Pinecone + DuckDuckGo web search + LLM
 """
+import logging
 import os
 import re
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 from llama_index.core import Settings, VectorStoreIndex
-from llama_index.core.prompts import PromptTemplate
+from llama_index.core.schema import NodeWithScore
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.groq import Groq
 from llama_index.vector_stores.pinecone import PineconeVectorStore
 from pinecone import Pinecone
 
-from .prompts import get_system_prompt
+from .prompts import get_system_prompt_for_generation
+from .web_search import build_search_query, format_web_results, search_web
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_NAME = "ceo-arena"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 GROQ_MODEL = "llama-3.3-70b-versatile"
+
+RELEVANCE_THRESHOLD = 0.35
+
+_GREETING_RE = re.compile(
+    r"^(hi|hello|hey|yo|sup|hallo|servus|moin|guten tag|guten morgen|guten abend|what'?s up)[!.,?]*$",
+    re.IGNORECASE,
+)
+_GREETING_PLUS_RE = re.compile(
+    r"^(hi|hello|hey|hallo|servus|moin).*(how are you|how's it going|wie geht|was geht)",
+    re.IGNORECASE,
+)
 
 
 class CEOQueryEngine:
@@ -31,42 +49,121 @@ class CEOQueryEngine:
         self.pc = Pinecone(api_key=PINECONE_API_KEY)
         self.pinecone_index = self.pc.Index(PINECONE_INDEX_NAME)
 
-        # HuggingFace embeddings (free, local)
         self.embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
-
-        # Groq LLM (free tier, Llama 3.3 70B)
         self.llm = Groq(model=model, temperature=0.7, api_key=os.getenv("GROQ_API_KEY"))
 
         Settings.embed_model = self.embed_model
         Settings.llm = self.llm
 
-        # Cache query engines per speaker
-        self._engines = {}
+        # Cache retrievers per speaker
+        self._retrievers: dict = {}
 
-    def _get_engine(self, speaker: str):
-        """Get or create a query engine for a specific CEO."""
-        if speaker in self._engines:
-            return self._engines[speaker]
+    # ------------------------------------------------------------------
+    # Retriever (replaces old _get_engine)
+    # ------------------------------------------------------------------
+    def _get_retriever(self, speaker: str):
+        """Get or create a retriever for a specific CEO namespace."""
+        if speaker in self._retrievers:
+            return self._retrievers[speaker]
 
-        # Connect to speaker's namespace
         vector_store = PineconeVectorStore(
             pinecone_index=self.pinecone_index,
             namespace=speaker,
         )
         index = VectorStoreIndex.from_vector_store(vector_store)
+        retriever = index.as_retriever(similarity_top_k=5)
 
-        # Build query engine with personality prompt
-        system_prompt = get_system_prompt(speaker)
-        qa_template = PromptTemplate(system_prompt)
+        self._retrievers[speaker] = retriever
+        return retriever
 
-        engine = index.as_query_engine(
-            similarity_top_k=5,
-            text_qa_template=qa_template,
+    # ------------------------------------------------------------------
+    # Classification helpers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _is_simple_prompt(question: str) -> bool:
+        """Check if question is a simple greeting or trivial (≤2 words)."""
+        q = question.strip()
+        if _GREETING_RE.match(q) or _GREETING_PLUS_RE.search(q):
+            return True
+        word_count = len(re.findall(r"\w+", q))
+        return word_count <= 2
+
+    @staticmethod
+    def _assess_relevance(nodes: list[NodeWithScore]) -> bool:
+        """Return True if the top Pinecone result is relevant enough."""
+        if not nodes:
+            return False
+        top_score = nodes[0].score
+        if top_score is None:
+            return True  # can't assess, assume relevant
+        return top_score >= RELEVANCE_THRESHOLD
+
+    # ------------------------------------------------------------------
+    # LLM generation
+    # ------------------------------------------------------------------
+    def _call_llm(self, system_prompt: str, user_message: str) -> str:
+        """Direct LLM call via Groq with a system prompt + user message."""
+        from llama_index.core.llms import ChatMessage, MessageRole
+
+        messages = [
+            ChatMessage(role=MessageRole.SYSTEM, content=system_prompt),
+            ChatMessage(role=MessageRole.USER, content=user_message),
+        ]
+        response = self.llm.chat(messages)
+        return str(response.message.content)
+
+    def _direct_llm_call(
+        self,
+        speaker: str,
+        question: str,
+        hint: str,
+        speaker_hint: str,
+        history_context: str,
+    ) -> str:
+        """Fast path: LLM with persona + biography only, no retrieval."""
+        system_prompt = get_system_prompt_for_generation(speaker)
+        user_message = self._build_user_message(question, hint, speaker_hint, history_context)
+        return self._call_llm(system_prompt, user_message)
+
+    def _generate_response(
+        self,
+        speaker: str,
+        question: str,
+        pinecone_context: str,
+        web_context: str,
+        hint: str,
+        speaker_hint: str,
+        history_context: str,
+    ) -> str:
+        """Full generation with all context (Pinecone + optional web)."""
+        system_prompt = get_system_prompt_for_generation(
+            speaker,
+            pinecone_context=pinecone_context,
+            web_context=web_context,
         )
+        user_message = self._build_user_message(question, hint, speaker_hint, history_context)
+        return self._call_llm(system_prompt, user_message)
 
-        self._engines[speaker] = engine
-        return engine
+    @staticmethod
+    def _build_user_message(
+        question: str,
+        hint: str,
+        speaker_hint: str,
+        history_context: str,
+    ) -> str:
+        """Assemble the user message with style hints and history."""
+        parts = [
+            f"[Response format instruction]\n{hint}",
+            f"[Speaker delivery instruction]\n{speaker_hint}",
+        ]
+        if history_context:
+            parts.append(f"[Recent conversation context]\n{history_context}")
+        parts.append(f"[Current user message]\n{question}")
+        return "\n\n".join(parts)
 
+    # ------------------------------------------------------------------
+    # Style / micro-style helpers (unchanged from original)
+    # ------------------------------------------------------------------
     def _style_plan(self, question: str, has_history: bool) -> tuple[str, int | None, int | None]:
         """Return style instruction plus hard output limits."""
         q = question.strip()
@@ -212,31 +309,50 @@ class CEOQueryEngine:
 
         return cleaned
 
-    def query(self, speaker: str, question: str, history: list[dict] | None = None) -> str:
-        """Ask a question to a specific CEO."""
-        engine = self._get_engine(speaker)
+    # ------------------------------------------------------------------
+    # Main query — 3-path flow
+    # ------------------------------------------------------------------
+    def query(self, speaker: str, question: str, history: list[dict] | None = None) -> tuple[str, str]:
+        """Ask a question to a specific CEO.
+
+        Returns (response_text, source) where source is one of:
+        "direct", "pinecone", "web+pinecone".
+        """
         has_history = bool(history)
         hint, max_sentences, max_words = self._style_plan(question, has_history=has_history)
         speaker_hint = self._speaker_microstyle(speaker, question)
         history_context = self._format_history_context(history)
 
-        if history_context:
-            styled_question = (
-                f"[Response format instruction]\n{hint}\n\n"
-                f"[Speaker delivery instruction]\n{speaker_hint}\n\n"
-                f"[Recent conversation context]\n{history_context}\n\n"
-                f"[Current user message]\n{question}"
-            )
-        else:
-            styled_question = (
-                f"[Response format instruction]\n{hint}\n\n"
-                f"[Speaker delivery instruction]\n{speaker_hint}\n\n"
-                f"[Current user message]\n{question}"
-            )
+        # FAST PATH — greetings / trivial prompts
+        if self._is_simple_prompt(question):
+            logger.info("Fast path for %s: %r", speaker, question)
+            text = self._direct_llm_call(speaker, question, hint, speaker_hint, history_context)
+            text = self._enforce_response_limits(text, max_sentences, max_words)
+            return text, "direct"
 
-        response = engine.query(styled_question)
-        text = str(response)
-        return self._enforce_response_limits(text, max_sentences=max_sentences, max_words=max_words)
+        # PHASE 1: Pinecone retrieval
+        retriever = self._get_retriever(speaker)
+        nodes = retriever.retrieve(question)
+
+        # PHASE 2: Relevance check + optional web search
+        web_context = ""
+        source = "pinecone"
+        if not self._assess_relevance(nodes):
+            logger.info("Weak Pinecone hits for %s, triggering web search", speaker)
+            search_query = build_search_query(speaker, question)
+            results = search_web(search_query, speaker)
+            web_context = format_web_results(results)
+            if web_context:
+                source = "web+pinecone"
+
+        # PHASE 3: Generate with combined context
+        pinecone_context = "\n\n".join(n.text for n in nodes if n.text)
+        text = self._generate_response(
+            speaker, question, pinecone_context, web_context,
+            hint, speaker_hint, history_context,
+        )
+        text = self._enforce_response_limits(text, max_sentences, max_words)
+        return text, source
 
     def debate(self, question: str, speakers: list[str] | None = None) -> dict[str, str]:
         """Ask the same question to multiple CEOs for a debate/comparison."""
@@ -246,6 +362,7 @@ class CEOQueryEngine:
         responses = {}
         for speaker in speakers:
             print(f"  Asking {speaker}...")
-            responses[speaker] = self.query(speaker, question)
+            text, _source = self.query(speaker, question)
+            responses[speaker] = text
 
         return responses
