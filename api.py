@@ -2,6 +2,7 @@
 CEO Arena - FastAPI Backend
 Serves the RAG query engine via REST API.
 """
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -11,9 +12,12 @@ from rag.query_engine import CEOQueryEngine
 
 app = FastAPI(title="CEO Arena API", version="1.0.0")
 
+raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
+allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["POST", "GET"],
     allow_headers=["*"],

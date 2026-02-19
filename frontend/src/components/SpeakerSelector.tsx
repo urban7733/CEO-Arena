@@ -8,12 +8,13 @@ interface SpeakerSelectorProps {
 
 export function SpeakerSelector({ speakers, onSelect }: SpeakerSelectorProps) {
   return (
-    <div className="speaker-grid">
-      {speakers.map((s) => (
+    <div className="speaker-grid" role="listbox" aria-label="Choose CEO speaker">
+      {speakers.map((s, index) => (
         <button
           key={s.id}
           className="speaker-card glass glass-hover"
           onClick={() => onSelect(s.id)}
+          style={{ animationDelay: `${index * 70}ms` }}
         >
           <span className="speaker-card-emoji">{s.emoji}</span>
           <span className="speaker-card-name">{s.name}</span>

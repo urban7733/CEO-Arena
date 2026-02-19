@@ -31,7 +31,15 @@ export function Sidebar({
 
       <aside className={`sidebar glass ${isOpen ? "sidebar-open" : ""}`}>
         <div className="sidebar-header">
-          <h2 className="sidebar-title">History</h2>
+          <h2 className="sidebar-title">Conversations</h2>
+          <button className="sidebar-close-btn glass-hover" onClick={onClose} aria-label="Close history">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="sidebar-toolbar">
           <button className="sidebar-new-btn glass glass-hover" onClick={onNewChat}>
             + New Chat
           </button>

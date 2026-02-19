@@ -18,6 +18,13 @@ export function ChatArea({ messages, speaker, isLoading }: ChatAreaProps) {
   return (
     <div className="chat-area">
       <div className="chat-messages">
+        {messages.length === 0 && !isLoading && (
+          <div className="chat-empty glass">
+            <p className="chat-empty-title">Start the conversation</p>
+            <p className="chat-empty-text">Ask {speaker.name} anything. Answers are generated from the RAG backend.</p>
+          </div>
+        )}
+
         {messages.map((msg) => (
           <div key={msg.id} className={`message message-${msg.role}`}>
             {msg.role === "assistant" && (

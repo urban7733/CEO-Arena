@@ -1,8 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { ChatSession, SpeakerId } from "./types";
-import { sendMessage } from "./api";
+import { sendMessage, checkHealth } from "./api";
 import { loadSessions, saveSessions, createSession, addMessage } from "./store";
-import { Header } from "./components/Header";
 import { SpeakerSelector } from "./components/SpeakerSelector";
 import { ChatArea } from "./components/ChatArea";
 import { ChatInput } from "./components/ChatInput";
@@ -21,9 +20,27 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [apiReady, setApiReady] = useState<boolean | null>(null);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null;
   const activeSpeaker = SPEAKERS_DATA.find((s) => s.id === activeSession?.speaker);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const ping = async () => {
+      const isHealthy = await checkHealth();
+      if (!cancelled) setApiReady(isHealthy);
+    };
+
+    ping();
+    const timer = setInterval(ping, 15000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   const updateSessions = useCallback(
     (updater: (prev: ChatSession[]) => ChatSession[]) => {
@@ -103,31 +120,61 @@ export default function App() {
       />
 
       <main className="main">
-        <Header
-          speaker={activeSpeaker}
-          onMenuClick={() => setSidebarOpen(true)}
-          onBack={activeSession ? handleNewChat : undefined}
-        />
+        <section className="hero glass">
+          <button className="hero-icon-btn glass-hover" onClick={() => setSidebarOpen(true)} aria-label="Open conversation history">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
 
-        {!activeSession ? (
-          <div className="welcome">
-            <div className="welcome-content">
-              <h1 className="welcome-title">CEO Arena</h1>
-              <p className="welcome-subtitle">
-                Chat with AI simulations of tech's most powerful leaders
-              </p>
-              <SpeakerSelector speakers={SPEAKERS_DATA} onSelect={handleSelectSpeaker} />
-              <p className="disclaimer">
-                Fan-made simulation based on public data. Not affiliated with any individuals.
-              </p>
-            </div>
+          <div className="hero-copy">
+            <h1 className="hero-title">CEO Arena</h1>
+            <p className="hero-subtitle">A clean glass chat experience for the 4 AI-era CEOs.</p>
           </div>
-        ) : (
-          <>
-            <ChatArea messages={activeSession.messages} speaker={activeSpeaker!} isLoading={isLoading} />
-            <ChatInput onSend={handleSend} isLoading={isLoading} speakerName={activeSpeaker?.name ?? ""} />
-          </>
-        )}
+
+          <div className="hero-actions">
+            <span className={`status-pill ${apiReady === true ? "status-pill-ready" : "status-pill-waiting"}`}>
+              {apiReady === null ? "Checking API" : apiReady ? "API Ready" : "API Offline"}
+            </span>
+            <button className="hero-new-chat glass-hover" onClick={handleNewChat}>
+              New Chat
+            </button>
+          </div>
+        </section>
+
+        <section className="chat-shell glass">
+          {!activeSession ? (
+            <div className="welcome">
+              <div className="welcome-content">
+                <h2 className="welcome-title">Choose a CEO</h2>
+                <p className="welcome-subtitle">
+                  Start one conversation at a time. Your local chat history is saved automatically.
+                </p>
+                <SpeakerSelector speakers={SPEAKERS_DATA} onSelect={handleSelectSpeaker} />
+                <p className="disclaimer">
+                  Fan-made simulation based on public data. Not affiliated with any individual.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="active-speaker-strip">
+                <div className="active-speaker-badge">
+                  <span>{activeSpeaker?.emoji}</span>
+                  <div>
+                    <strong>{activeSpeaker?.name}</strong>
+                    <small>{activeSpeaker?.company}</small>
+                  </div>
+                </div>
+                <button className="change-speaker-btn glass-hover" onClick={handleNewChat}>
+                  Switch Speaker
+                </button>
+              </div>
+              <ChatArea messages={activeSession.messages} speaker={activeSpeaker!} isLoading={isLoading} />
+              <ChatInput onSend={handleSend} isLoading={isLoading} speakerName={activeSpeaker?.name ?? ""} />
+            </>
+          )}
+        </section>
       </main>
     </div>
   );
