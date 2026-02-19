@@ -17,25 +17,25 @@
 }
 
 .chat-empty {
-  max-width: 620px;
-  margin: 10px auto 0;
-  padding: 14px 16px;
+  max-width: 420px;
+  margin: 48px auto 0;
+  padding: 20px 18px;
   border-radius: 14px;
-  border: 1px solid var(--glass-border-strong);
-  background: rgba(17, 17, 17, 0.84);
+  border: 1px solid var(--glass-border);
+  background: rgba(14, 14, 14, 0.6);
   text-align: center;
 }
 
 .chat-empty-title {
-  color: var(--text-primary);
-  font-size: 0.86rem;
-  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .chat-empty-text {
-  margin-top: 4px;
+  margin-top: 6px;
   color: var(--text-muted);
-  font-size: 0.77rem;
+  font-size: 0.74rem;
   line-height: 1.55;
 }
 
@@ -81,14 +81,14 @@
 }
 
 .message-bubble-user {
-  background: linear-gradient(145deg, #202020, #151515) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: linear-gradient(145deg, #1e1e1e, #161616) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
   border-bottom-right-radius: 6px;
 }
 
 .message-bubble-assistant {
-  background: linear-gradient(145deg, #141414, #0f0f0f) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: linear-gradient(145deg, #131313, #0e0e0e) !important;
+  border-color: rgba(255, 255, 255, 0.09) !important;
   border-bottom-left-radius: 6px;
 }
 
@@ -107,11 +107,26 @@
 }
 
 .thinking-panel {
-  margin-bottom: 8px;
-  padding: 8px 9px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(140, 130, 255, 0.14);
+  background: rgba(140, 130, 255, 0.03);
+}
+
+.thinking-panel-enter {
+  animation: thinkingFadeIn 0.3s ease-out both;
+}
+
+@keyframes thinkingFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .thinking-label {
@@ -122,16 +137,16 @@
 }
 
 .thinking-split {
-  margin-top: 5px;
+  margin-top: 7px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
+  gap: 8px;
 }
 
 .thinking-box {
-  padding: 6px 7px;
+  padding: 8px 9px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(140, 130, 255, 0.1);
   background: rgba(255, 255, 255, 0.015);
 }
 

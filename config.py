@@ -26,7 +26,7 @@ SPEAKERS = {
     },
     "mark_zuckerberg": {
         "name": "Mark Zuckerberg",
-        "twitter_handle": "faboringd",
+        "twitter_handle": "finkd",
     },
 }
 

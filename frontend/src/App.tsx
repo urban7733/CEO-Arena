@@ -43,6 +43,7 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<SpeakerId>("elon_musk");
   const [isLoading, setIsLoading] = useState(false);
+  const [lastPromptComplex, setLastPromptComplex] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [apiReady, setApiReady] = useState<boolean | null>(null);
 
@@ -107,6 +108,7 @@ export default function App() {
         .slice(-12)
         .map((m) => ({ role: m.role, content: m.content }));
 
+      setLastPromptComplex(isComplexPrompt(text));
       setIsLoading(true);
       try {
         const requestStartedAt = Date.now();
@@ -202,7 +204,7 @@ export default function App() {
 
           <div className="topbar-copy">
             <h1 className="topbar-title">CEO Arena</h1>
-            <p className="topbar-subtitle">One chat box. Four perspectives.</p>
+            <p className="topbar-subtitle">Four CEOs, one conversation.</p>
           </div>
 
           <div className="topbar-actions">
@@ -216,7 +218,7 @@ export default function App() {
         </section>
 
         <section className="chat-shell glass">
-          <ChatArea messages={activeSession?.messages ?? []} speaker={activeSpeaker} isLoading={isLoading} />
+          <ChatArea messages={activeSession?.messages ?? []} speaker={activeSpeaker} isLoading={isLoading} isComplex={lastPromptComplex} />
           <ChatInput
             onSend={handleSend}
             isLoading={isLoading}

@@ -6,6 +6,7 @@ interface ChatAreaProps {
   messages: Message[];
   speaker: Speaker;
   isLoading: boolean;
+  isComplex: boolean;
 }
 
 interface ThinkingProfile {
@@ -69,7 +70,7 @@ const THINKING_PROFILES: Record<SpeakerId, ThinkingProfile> = {
   },
 };
 
-export function ChatArea({ messages, speaker, isLoading }: ChatAreaProps) {
+export function ChatArea({ messages, speaker, isLoading, isComplex }: ChatAreaProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottomRef = useRef(true);
@@ -150,20 +151,22 @@ export function ChatArea({ messages, speaker, isLoading }: ChatAreaProps) {
               <img src={speaker.avatar} alt={speaker.name} loading="lazy" />
             </div>
             <div className="message-bubble glass message-bubble-assistant">
-              <div className="thinking-panel">
-                <p className="thinking-label">{speaker.name} is thinking</p>
-                <div className="thinking-split">
-                  <div className="thinking-box">
-                    <p className="thinking-box-label">Inside head</p>
-                    <p className="thinking-line" ref={thinkingTextRef} />
+              {isComplex && (
+                <div className="thinking-panel thinking-panel-enter">
+                  <p className="thinking-label">{speaker.name} is thinking</p>
+                  <div className="thinking-split">
+                    <div className="thinking-box">
+                      <p className="thinking-box-label">Inside head</p>
+                      <p className="thinking-line" ref={thinkingTextRef} />
+                    </div>
+                    <div className="thinking-box">
+                      <p className="thinking-box-label">Would say</p>
+                      <p className="thinking-line thinking-line-draft" ref={draftTextRef} />
+                    </div>
                   </div>
-                  <div className="thinking-box">
-                    <p className="thinking-box-label">Would say</p>
-                    <p className="thinking-line thinking-line-draft" ref={draftTextRef} />
-                  </div>
+                  <p className="thinking-subline">{thinkingProfile.pacing}</p>
                 </div>
-                <p className="thinking-subline">{thinkingProfile.pacing}</p>
-              </div>
+              )}
               <div className="typing-indicator">
                 <span />
                 <span />
