@@ -106,6 +106,60 @@
   padding: 3px 0;
 }
 
+.thinking-panel {
+  margin-bottom: 8px;
+  padding: 8px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.thinking-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #bdbdbd;
+}
+
+.thinking-split {
+  margin-top: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.thinking-box {
+  padding: 6px 7px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.thinking-box-label {
+  font-size: 0.59rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #aaaaaa;
+}
+
+.thinking-line {
+  margin-top: 3px;
+  min-height: 1.2rem;
+  font-size: 0.73rem;
+  line-height: 1.4;
+  color: #f0f0f0;
+}
+
+.thinking-line-draft {
+  color: #e4e4e4;
+}
+
+.thinking-subline {
+  margin-top: 4px;
+  font-size: 0.66rem;
+  color: #969696;
+}
+
 .typing-indicator span {
   width: 6px;
   height: 6px;
@@ -153,5 +207,9 @@
 
   .message-bubble {
     max-width: 90%;
+  }
+
+  .thinking-split {
+    grid-template-columns: 1fr;
   }
 }

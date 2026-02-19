@@ -80,6 +80,16 @@ This repository includes a production focused `render.yaml` that provisions both
 4. Start deployment and verify both service URLs.
 5. If service names differ, update `ALLOWED_ORIGINS` and `VITE_API_BASE` accordingly.
 
+## Deployment on Cloudflare Pages
+
+The frontend is also deployable on Cloudflare Pages.
+
+1. Change into frontend directory with `cd frontend`.
+2. Authenticate once with `npx wrangler login` and verify via `npx wrangler whoami`.
+3. Set `VITE_API_BASE` in Cloudflare Pages project settings to your backend URL, for example `https://your-render-backend.onrender.com/api`.
+4. Deploy with `npm run cf:deploy`.
+5. Use `npm run cf:dev` for local Pages runtime preview.
+
 ## Security and Secrets
 
 The project cleanly separates code and configuration.

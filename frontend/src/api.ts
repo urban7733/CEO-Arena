@@ -12,11 +12,16 @@ export async function sendMessage(
   message: string,
   history?: ChatHistoryTurn[]
 ): Promise<ChatResponse> {
-  const res = await fetch(`${API_BASE}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ speaker, message, history }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ speaker, message, history }),
+    });
+  } catch {
+    throw new Error(`Failed to reach API at ${API_BASE}. Check backend and VITE_API_BASE.`);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Server error" }));
@@ -30,11 +35,16 @@ export async function sendDebate(
   message: string,
   speakers?: SpeakerId[]
 ): Promise<ChatResponse[]> {
-  const res = await fetch(`${API_BASE}/debate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, speakers }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/debate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, speakers }),
+    });
+  } catch {
+    throw new Error(`Failed to reach API at ${API_BASE}. Check backend and VITE_API_BASE.`);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Server error" }));

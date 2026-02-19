@@ -88,37 +88,84 @@ class CEOQueryEngine:
 
         if greeting_plus_re.search(q):
             return (
-                "Reply in exactly 2 short sentences (max 38 words total): give a specific in-character status "
+                "Reply in 2-3 short sentences (max 75 words total): give a specific in-character status "
                 "update, then ask one natural follow-up question.",
-                2,
-                38,
+                3,
+                75,
             )
         if greeting_re.match(q):
-            return ("Reply with exactly one short sentence (max 14 words), in character.", 1, 14)
+            return ("Reply in 1-2 short sentences (max 28 words), in character.", 2, 28)
         if word_count <= 4:
-            return ("Reply with exactly one short sentence (max 16 words), in character.", 1, 16)
+            return ("Reply with one short sentence (max 24 words), in character.", 1, 24)
         if has_history and word_count <= 12:
             return (
                 "Treat this as a follow-up. Reference relevant recent chat context. "
-                "Reply in 1-2 short sentences, max 36 words.",
-                2,
-                36,
+                "Reply in 2-4 short sentences, max 110 words.",
+                4,
+                110,
             )
         if word_count <= 10 and not detail_re.search(lowered):
-            return ("Reply in 1-2 short sentences, max 34 words, clear and specific.", 2, 34)
+            return ("Reply in 2-4 short sentences, max 100 words, clear and specific.", 4, 100)
         if detail_re.search(lowered) or word_count >= 26:
             return (
-                "Give a detailed and structured answer in 5-10 sentences with concrete points, no filler.",
-                10,
-                260,
+                "Give a detailed and structured answer in 6-11 sentences with concrete points, no filler.",
+                11,
+                380,
             )
         if word_count >= 16:
             return (
-                "Give a clear, medium-depth answer in 3-6 sentences with practical specifics.",
-                6,
-                150,
+                "Give a clear, medium-depth answer in 4-8 sentences with practical specifics.",
+                8,
+                260,
             )
-        return ("Keep it concise: 2-3 short sentences, max 70 words, clear and specific.", 3, 70)
+        return (
+            "Keep it concise but useful: 3-6 sentences with concrete specifics.",
+            6,
+            180,
+        )
+
+    def _speaker_microstyle(self, speaker: str, question: str) -> str:
+        """Speaker-specific delivery hint so voices feel distinct."""
+        lowered = question.lower()
+        word_count = len(re.findall(r"\w+", question))
+        complex_question = word_count >= 18 or bool(
+            re.search(r"\b(why|how|strategy|tradeoff|architecture|roadmap|risk|vergleich|analyse|plan)\b", lowered)
+        )
+
+        if speaker == "elon_musk":
+            if complex_question:
+                return (
+                    "Voice: fast, first-principles, slightly provocative. Use one vivid analogy and one short "
+                    "self-correction at most once (example pattern: 'Wait-no, better framing...')."
+                )
+            return (
+                "Voice: punchy and witty. You may add one brief hesitation phrase at most once "
+                "(example pattern: 'Uh...')."
+            )
+
+        if speaker == "sam_altman":
+            return (
+                "Voice: calm founder energy. Start with the core thesis, then practical implications. "
+                "Balanced optimism with realistic caveats."
+            )
+
+        if speaker == "dario_amodei":
+            return (
+                "Voice: thoughtful and scientific. Make uncertainty explicit where needed, then give the most "
+                "robust practical takeaway."
+            )
+
+        if speaker == "mark_zuckerberg":
+            if complex_question:
+                return (
+                    "Voice: methodical and precise. Take a brief beat in the first clause, then give structured, "
+                    "execution-focused guidance with concrete wording."
+                )
+            return (
+                "Voice: direct product-builder mode. Slightly slower start, then crisp and practical answer."
+            )
+
+        return "Voice: stay in character and be specific."
 
     def _format_history_context(self, history: list[dict] | None) -> str:
         """Build compact recent conversation context for the current query."""
@@ -170,17 +217,20 @@ class CEOQueryEngine:
         engine = self._get_engine(speaker)
         has_history = bool(history)
         hint, max_sentences, max_words = self._style_plan(question, has_history=has_history)
+        speaker_hint = self._speaker_microstyle(speaker, question)
         history_context = self._format_history_context(history)
 
         if history_context:
             styled_question = (
-                f"[Response format instruction: {hint}]\n"
+                f"[Response format instruction]\n{hint}\n\n"
+                f"[Speaker delivery instruction]\n{speaker_hint}\n\n"
                 f"[Recent conversation context]\n{history_context}\n\n"
                 f"[Current user message]\n{question}"
             )
         else:
             styled_question = (
-                f"[Response format instruction: {hint}]\n"
+                f"[Response format instruction]\n{hint}\n\n"
+                f"[Speaker delivery instruction]\n{speaker_hint}\n\n"
                 f"[Current user message]\n{question}"
             )
 

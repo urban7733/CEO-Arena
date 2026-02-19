@@ -14,6 +14,30 @@ const SPEAKERS_DATA = [
   { id: "mark_zuckerberg" as SpeakerId, name: "Mark Zuckerberg", company: "Meta", avatar: "/avatars/mark_zuckerberg.png" },
 ];
 
+const MIN_REPLY_DELAY_MS: Record<SpeakerId, number> = {
+  elon_musk: 450,
+  sam_altman: 700,
+  dario_amodei: 950,
+  mark_zuckerberg: 1200,
+};
+
+const COMPLEX_REPLY_BOOST_MS: Record<SpeakerId, number> = {
+  elon_musk: 160,
+  sam_altman: 220,
+  dario_amodei: 260,
+  mark_zuckerberg: 380,
+};
+
+const COMPLEX_PROMPT_RE =
+  /\b(why|how|compare|tradeoff|strategy|architecture|roadmap|details?|deep|step by step|warum|wieso|ausf[uü]hrlich|analyse|plan)\b/i;
+
+function isComplexPrompt(text: string): boolean {
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  return wordCount >= 18 || COMPLEX_PROMPT_RE.test(text);
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function App() {
   const [sessions, setSessions] = useState<ChatSession[]>(() => loadSessions());
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -85,7 +109,15 @@ export default function App() {
 
       setIsLoading(true);
       try {
+        const requestStartedAt = Date.now();
         const res = await sendMessage(session.speaker, text, history);
+        const baseDelay = MIN_REPLY_DELAY_MS[session.speaker] ?? 650;
+        const boost = isComplexPrompt(text) ? COMPLEX_REPLY_BOOST_MS[session.speaker] ?? 0 : 0;
+        const minDelay = baseDelay + boost;
+        const elapsed = Date.now() - requestStartedAt;
+        if (elapsed < minDelay) {
+          await sleep(minDelay - elapsed);
+        }
         addMessage(session, "assistant", res.message, session.speaker);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Something went wrong";
