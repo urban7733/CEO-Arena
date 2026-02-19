@@ -4,6 +4,7 @@ Uses Groq (Llama 3.3 70B) for generation and HuggingFace for embeddings.
 Retrieves relevant context from Pinecone and generates responses in CEO character.
 """
 import os
+import re
 from dotenv import load_dotenv
 
 from llama_index.core import Settings, VectorStoreIndex
@@ -66,10 +67,37 @@ class CEOQueryEngine:
         self._engines[speaker] = engine
         return engine
 
+    def _style_hint(self, question: str) -> str:
+        """Return a concise style instruction based on the user query shape."""
+        q = question.strip()
+        lowered = q.lower()
+        word_count = len(re.findall(r"\w+", q))
+
+        greeting_re = re.compile(
+            r"^(hi|hello|hey|yo|sup|hallo|servus|moin|guten tag|guten morgen|guten abend)[!.?]*$",
+            re.IGNORECASE,
+        )
+        detail_re = re.compile(
+            r"\b(detail|details|deep|deeper|detailed|step by step|explain in depth|warum|wieso|ausf[uü]hrlich)\b",
+            re.IGNORECASE,
+        )
+
+        if greeting_re.match(q):
+            return "Reply with exactly one short sentence (max 16 words), in character."
+        if word_count <= 4:
+            return "Reply with one short sentence (max 20 words), in character."
+        if word_count <= 10 and not detail_re.search(lowered):
+            return "Reply in 1-2 short sentences (max 45 words), clear and specific."
+        if detail_re.search(lowered):
+            return "Give a clear but structured answer, usually 4-8 short sentences, no filler."
+        return "Keep it concise: usually 2-4 short sentences, clear and specific."
+
     def query(self, speaker: str, question: str) -> str:
         """Ask a question to a specific CEO."""
         engine = self._get_engine(speaker)
-        response = engine.query(question)
+        hint = self._style_hint(question)
+        styled_question = f"{question}\n\n[Response format instruction: {hint}]"
+        response = engine.query(styled_question)
         return str(response)
 
     def debate(self, question: str, speakers: list[str] | None = None) -> dict[str, str]:
