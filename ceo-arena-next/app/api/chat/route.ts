@@ -6,6 +6,8 @@ import { DISPLAY_NAMES } from "@/lib/constants";
 import { getEngine } from "@/lib/rag/query-engine";
 import type { SpeakerId } from "@/types";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Internal server error";
+    console.error("Chat API error:", errorMessage, err instanceof Error ? err.stack : "");
     return NextResponse.json({ detail: errorMessage }, { status: 500 });
   }
 }

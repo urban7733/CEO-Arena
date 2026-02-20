@@ -6,6 +6,8 @@ import { DISPLAY_NAMES, SPEAKER_IDS } from "@/lib/constants";
 import { getEngine } from "@/lib/rag/query-engine";
 import type { SpeakerId } from "@/types";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
