@@ -1,6 +1,6 @@
 """
 Query engine for CEO Arena.
-Uses Groq (Llama 3.3 70B) for generation and HuggingFace for embeddings.
+Uses Groq (Llama 3.3 70B) for generation and FastEmbed (ONNX) for embeddings.
 Three response paths:
   1. Fast path   — greetings/trivial → LLM with persona + biography only
   2. RAG path    — good Pinecone hits (score ≥ 0.35) → Pinecone context + LLM
