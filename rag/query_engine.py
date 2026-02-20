@@ -64,10 +64,11 @@ class CEOQueryEngine:
             include_metadata=True,
         )
         nodes = []
-        for match in results.get("matches", []):
+        for match in results.matches:
+            metadata = match.metadata or {}
             nodes.append({
-                "score": match.get("score", 0.0),
-                "text": match.get("metadata", {}).get("text", ""),
+                "score": match.score or 0.0,
+                "text": metadata.get("text", ""),
             })
         return nodes
 

@@ -20,7 +20,7 @@ raw_origins = os.getenv(
 allowed_origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 allowed_origin_regex = os.getenv(
     "ALLOWED_ORIGIN_REGEX",
-    r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://.*\.vercel\.app$|^https://.*\.pages\.dev$",
 )
 
 app.add_middleware(
@@ -32,8 +32,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize engine once at startup
-engine: CEOQueryEngine | None = None
+# Lazy-initialized engine (Vercel serverless doesn't support startup events)
+_engine: CEOQueryEngine | None = None
+
+
+def get_engine() -> CEOQueryEngine:
+    global _engine
+    if _engine is None:
+        _engine = CEOQueryEngine()
+    return _engine
 
 
 class Speaker(str, Enum):
@@ -74,17 +81,9 @@ DISPLAY_NAMES = {
 }
 
 
-@app.on_event("startup")
-async def startup():
-    global engine
-    print("Loading CEO Arena engine...")
-    engine = CEOQueryEngine()
-    print("Engine ready!")
-
-
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "engine_loaded": engine is not None}
+    return {"status": "ok"}
 
 
 @app.get("/api/speakers")
@@ -99,10 +98,8 @@ async def get_speakers():
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
-    if not engine:
-        raise HTTPException(status_code=503, detail="Engine not loaded")
-
     try:
+        engine = get_engine()
         history = [turn.model_dump() for turn in req.history] if req.history else None
         response, source = engine.query(req.speaker.value, req.message, history=history)
         return ChatResponse(
@@ -117,12 +114,9 @@ async def chat(req: ChatRequest):
 
 @app.post("/api/debate")
 async def debate(req: DebateRequest):
-    if not engine:
-        raise HTTPException(status_code=503, detail="Engine not loaded")
-
-    speakers = [s.value for s in req.speakers] if req.speakers else list(DISPLAY_NAMES.keys())
-
     try:
+        engine = get_engine()
+        speakers = [s.value for s in req.speakers] if req.speakers else list(DISPLAY_NAMES.keys())
         responses = engine.debate(req.message, speakers)
         return [
             ChatResponse(
