@@ -1,6 +1,8 @@
 """
 Query engine for CEO Arena.
-Uses Groq (Llama 3.3 70B) for generation and FastEmbed (ONNX) for embeddings.
+Uses Groq (Llama 3.3 70B) for generation and HuggingFace Inference API for embeddings.
+Direct SDK calls — no LlamaIndex dependency at runtime.
+
 Three response paths:
   1. Fast path   — greetings/trivial → LLM with persona + biography only
   2. RAG path    — good Pinecone hits (score ≥ 0.35) → Pinecone context + LLM
@@ -11,13 +13,10 @@ import os
 import re
 
 from dotenv import load_dotenv
-from llama_index.core import Settings, VectorStoreIndex
-from llama_index.core.schema import NodeWithScore
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.llms.groq import Groq
-from llama_index.vector_stores.pinecone import PineconeVectorStore
+from groq import Groq
 from pinecone import Pinecone
 
+from .embeddings import HFInferenceEmbedding
 from .prompts import get_system_prompt_for_generation
 from .web_search import build_search_query, format_web_results, search_web
 
@@ -27,7 +26,6 @@ logger = logging.getLogger(__name__)
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_NAME = "ceo-arena"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
 RELEVANCE_THRESHOLD = 0.35
@@ -49,32 +47,44 @@ class CEOQueryEngine:
         self.pc = Pinecone(api_key=PINECONE_API_KEY)
         self.pinecone_index = self.pc.Index(PINECONE_INDEX_NAME)
 
-        self.embed_model = HuggingFaceEmbedding(model_name=EMBEDDING_MODEL)
-        self.llm = Groq(model=model, temperature=0.7, api_key=os.getenv("GROQ_API_KEY"))
-
-        Settings.embed_model = self.embed_model
-        Settings.llm = self.llm
-
-        # Cache retrievers per speaker
-        self._retrievers: dict = {}
+        self.embed_model = HFInferenceEmbedding()
+        self.groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        self.model = model
 
     # ------------------------------------------------------------------
-    # Retriever (replaces old _get_engine)
+    # Pinecone retrieval (direct SDK, no LlamaIndex)
     # ------------------------------------------------------------------
-    def _get_retriever(self, speaker: str):
-        """Get or create a retriever for a specific CEO namespace."""
-        if speaker in self._retrievers:
-            return self._retrievers[speaker]
-
-        vector_store = PineconeVectorStore(
-            pinecone_index=self.pinecone_index,
+    def _retrieve(self, speaker: str, question: str, top_k: int = 5) -> list[dict]:
+        """Query Pinecone directly. Returns list of {score, text} dicts."""
+        query_embedding = self.embed_model.embed_query(question)
+        results = self.pinecone_index.query(
+            vector=query_embedding,
             namespace=speaker,
+            top_k=top_k,
+            include_metadata=True,
         )
-        index = VectorStoreIndex.from_vector_store(vector_store)
-        retriever = index.as_retriever(similarity_top_k=5)
+        nodes = []
+        for match in results.get("matches", []):
+            nodes.append({
+                "score": match.get("score", 0.0),
+                "text": match.get("metadata", {}).get("text", ""),
+            })
+        return nodes
 
-        self._retrievers[speaker] = retriever
-        return retriever
+    # ------------------------------------------------------------------
+    # LLM generation (direct Groq SDK, no LlamaIndex)
+    # ------------------------------------------------------------------
+    def _call_llm(self, system_prompt: str, user_message: str) -> str:
+        """Direct LLM call via Groq SDK."""
+        response = self.groq.chat.completions.create(
+            model=self.model,
+            temperature=0.7,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+        )
+        return response.choices[0].message.content
 
     # ------------------------------------------------------------------
     # Classification helpers
@@ -89,29 +99,16 @@ class CEOQueryEngine:
         return word_count <= 2
 
     @staticmethod
-    def _assess_relevance(nodes: list[NodeWithScore]) -> bool:
+    def _assess_relevance(nodes: list[dict]) -> bool:
         """Return True if the top Pinecone result is relevant enough."""
         if not nodes:
             return False
-        top_score = nodes[0].score
-        if top_score is None:
-            return True  # can't assess, assume relevant
+        top_score = nodes[0].get("score", 0.0)
         return top_score >= RELEVANCE_THRESHOLD
 
     # ------------------------------------------------------------------
-    # LLM generation
+    # Response generation helpers
     # ------------------------------------------------------------------
-    def _call_llm(self, system_prompt: str, user_message: str) -> str:
-        """Direct LLM call via Groq with a system prompt + user message."""
-        from llama_index.core.llms import ChatMessage, MessageRole
-
-        messages = [
-            ChatMessage(role=MessageRole.SYSTEM, content=system_prompt),
-            ChatMessage(role=MessageRole.USER, content=user_message),
-        ]
-        response = self.llm.chat(messages)
-        return str(response.message.content)
-
     def _direct_llm_call(
         self,
         speaker: str,
@@ -162,7 +159,7 @@ class CEOQueryEngine:
         return "\n\n".join(parts)
 
     # ------------------------------------------------------------------
-    # Style / micro-style helpers (unchanged from original)
+    # Style / micro-style helpers
     # ------------------------------------------------------------------
     def _style_plan(self, question: str, has_history: bool) -> tuple[str, int | None, int | None]:
         """Return style instruction plus hard output limits."""
@@ -331,8 +328,7 @@ class CEOQueryEngine:
             return text, "direct"
 
         # PHASE 1: Pinecone retrieval
-        retriever = self._get_retriever(speaker)
-        nodes = retriever.retrieve(question)
+        nodes = self._retrieve(speaker, question)
 
         # PHASE 2: Relevance check + optional web search
         web_context = ""
@@ -346,7 +342,7 @@ class CEOQueryEngine:
                 source = "web+pinecone"
 
         # PHASE 3: Generate with combined context
-        pinecone_context = "\n\n".join(n.text for n in nodes if n.text)
+        pinecone_context = "\n\n".join(n["text"] for n in nodes if n.get("text"))
         text = self._generate_response(
             speaker, question, pinecone_context, web_context,
             hint, speaker_hint, history_context,
